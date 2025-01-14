@@ -1,50 +1,53 @@
-from fastapi import FastAPI
-
+from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
-from typing import Optional
 
-class UserData(BaseModel):
-    user_id: str
-    user_name: str
-    nickname: str
-    character_type: str
-    facial_expression_1: bytes = b"block(0)"
-    facial_expression_2: bytes = b"block(0)"
-    facial_expression_3: bytes = b"block(0)" 
-    facial_expression_4: bytes = b"block(0)"
-    material_texture_1: bytes = b"block(0)"
-    material_texture_2: bytes = b"block(0)"
-    material_texture_3: bytes = b"block(0)"
-    material_texture_4: bytes = b"block(0)"
-    material_texture_5: bytes = b"block(0)"
-    screenshot_image: bytes = b"block(0)"
-    third_name: str
-    effect_name: str
-    bg_name: str
-    scenario_text: str
-    motion_data_1: bytes = b"block(0)"
-    motion_data_2: bytes = b"block(0)" 
-    motion_data_3: bytes = b"block(0)"
-    motion_data_4: bytes = b"block(0)"
-    motion_data_5: bytes = b"block(0)"
-    video_file: bytes = b"block(0)"
-    effect_url: str
+import requests as req
 
 app = FastAPI()
 
-@app.get("/users/{user_id}")
-async def get_user(user_id: str):
-    # 실제 구현에서는 데이터베이스 조회 로직이 들어갈 것입니다
-    # 현재는 예시 데이터를 반환합니다
-    user_data = UserData(
-        user_id=user_id,
-        user_name="테스트 사용자",
-        nickname="닉네임",
-        character_type="기본",
-        third_name="third_name",
-        effect_name="effect_name", 
-        bg_name="bg_name",
-        scenario_text="시나리오 텍스트",
-        effect_url="effect_url"
-    )
-    return user_data
+db = []
+
+class City(BaseModel):
+    name: str
+    timezone: str
+
+@app.get("/")
+async def root():
+    return {"message": "API Test"}
+
+#특정 도시 정보 id로 Get
+@app.get("/cities/{city_id}") 
+async def get_city(city_id: int):
+    city = db[city_id]
+    #r = req.get(f"http://worldtimeapi.org/api/timezone/{city.timezone}")
+    #cur_time = r.json()["datetime"]
+    #return {"name": city.name, "timezone": city.timezone, "current_time": cur_time}
+    return{"name": city.name, "timezone": city.timezone}
+
+
+#모든 리스트에 있는 정보 Get
+@app.get("/cities") 
+async def get_cities():
+    try:
+        results = []
+        for city in db:
+            #r = req.get(f"http://worldtimeapi.org/api/timezone/{city.timezone}")
+            #cur_time = r.json()["datetime"]
+            #results.append({"name": city.name, "timezone": city.timezone, "current_time": cur_time})
+            results.append({"name": city.name, "timezone": city.timezone})
+
+        return results
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+    
+#도시 추가 Post
+@app.post("/cities") 
+async def create_city(city: City):
+    db.append(city)
+    return city
+
+#도시 삭제 Delete
+@app.delete("/cities/{city_id}") 
+def delete_city(city_id: int):
+    db.pop(city_id)
+    return {"message": f"{city_id}번 도시가 삭제되었습니다"}
