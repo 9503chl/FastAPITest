@@ -1,17 +1,9 @@
-from fastapi import FastAPI, HTTPException
-from pydantic import BaseModel
-from typing import Optional,List
-from uuid import UUID,uuid4
-from fastapi.middleware.cors import CORSMiddleware
+from fastapi import FastAPI
+from model import User,UserTable
+from typing import List
+from starlette.middleware.cors import CORSMiddleware
 
-import socket
-import ssl
-
-class Item(BaseModel):
-    id : Optional[UUID] = uuid4()
-    name : str
-    price: float
-    is_offer: Optional[bool] = None
+from db import session
 
 app = FastAPI()
 
@@ -23,47 +15,56 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-items = []
+@app.get("/users")
+async def read_users():
+    users = session.query(UserTable).all()
 
-@app.post("/items/", response_model=Item)
-async def create_item(item: Item):
-    items.append(item)
-    return item
+    return users
 
-@app.get("/items/", response_model=List[Item])
-async def read_items():
-    return items
+@app.get("/users/{user_id}")
+async def read_user(user_id: int):
+    user = session.query(UserTable).filter(UserTable.id == user_id).first()
 
-@app.get("/items/{item_id}", response_model=Item)
-async def read_item(item_id: UUID):
-    for item in items:
-        if item.id == item_id:
-            return item
-    raise HTTPException(status_code=404, detail="Item not found")
-
-@app.put("/items/{item_id}", response_model=Item)
-async def update_item(item_id: UUID, item: Item):
-    for index, existing_item in enumerate(items):
-        if existing_item.id == item_id:
-            items[index] = item
-            return item
-    raise HTTPException(status_code=404, detail="Item not found")
-
-@app.delete("/items/{item_id}", response_model=Item)
-async def delete_item(item_id: UUID):
-    for index, item in enumerate(items):
-        if item.id == item_id:
-            return items.pop(index)
-    raise HTTPException(status_code=404, detail="Item not found")
+    return user
 
 
-if __name__ == "__main__":
-    import uvicorn
+@app.post("/users")
+async def create_user(name : str, age : int):
+    user = UserTable(name=name, age=age)
+    session.add(user)
+    session.commit()
 
-    uvicorn.run(
-        app, 
-        host= "192.168.2.196", 
-        port= 8080,
-        ssl_keyfile=None,
-        ssl_certfile=None
-    )
+    return f"User {name} created successfully"
+
+#user 여러명 업데이트
+@app.put("/users")
+async def update_user(users: List[User]):
+    for user in users:
+        user = session.query(UserTable).filter(UserTable.id == user.id).first()
+        user.name = user.name
+        user.age = user.age
+        session.commit()
+
+    return f"Users updated successfully"
+
+'''
+#user 한명 업데이트
+@app.put("/users/{user_id}")
+async def update_user(user_id: int, name : str, age : int):
+    user = Session.query(UserTable).filter(UserTable.id == user_id).first()
+    user.name = name
+    user.age = age
+    Session.commit()
+    return f"User {name} updated successfully"
+'''
+
+
+@app.delete("/users/{user_id}")
+async def delete_user(user_id: int):
+    user = session.query(UserTable).filter(UserTable.id == user_id).delete()
+    session.commit()
+
+    return f"User {user_id} deleted successfully"
+
+
+
